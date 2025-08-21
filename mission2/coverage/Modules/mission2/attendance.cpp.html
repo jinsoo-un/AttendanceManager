@@ -1,0 +1,161 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>attendance.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+ï»¿#include "attendance.h"
+#include &lt;fstream&gt;
+#include &lt;cctype&gt;
+
+<span style = "background-color:#dfd">static std::string toLowerCopy(const std::string&amp; s) {
+    std::string o; o.reserve(s.size());
+    for (size_t i = 0; i &lt; s.size(); ++i) { unsigned char c = (unsigned char)s[i]; o.push_back((char)std::tolower(c)); }
+    return o;
+}</span>
+
+<span style = "background-color:#dfd">bool parseWeekday(const std::string&amp; s, Weekday&amp; out) {
+    std::string t = toLowerCopy(s);
+    if (t == "monday") { out = Mon; return true; }
+    if (t == "tuesday") { out = Tue; return true; }
+    if (t == "wednesday") { out = Wed; return true; }
+    if (t == "thursday") { out = Thu; return true; }
+    if (t == "friday") { out = Fri; return true; }
+    if (t == "saturday") { out = Sat; return true; }
+    if (t == "sunday") { out = Sun; return true; }
+    return false;
+}</span>
+
+// ThresholdGradePolicy
+<span style = "background-color:#dfd">ThresholdGradePolicy::ThresholdGradePolicy() {
+    GradeBand g;
+    g.gradeName = "GOLD"; g.minScore = 50; bands_.push_back(g);
+    g.gradeName = "SILVER"; g.minScore = 30; bands_.push_back(g);
+    g.gradeName = "NORMAL"; g.minScore = 0;  bands_.push_back(g);
+}</span>
+
+<span style = "background-color:#dfd">ThresholdGradePolicy::ThresholdGradePolicy(const std::vector&lt;GradeBand&gt;&amp; b) :bands_(b) {}
+std::string ThresholdGradePolicy::decide(int totalPoints) const {
+    for (size_t i = 0; i &lt; bands_.size(); ++i) { if (totalPoints &gt;= bands_[i].minScore) return bands_[i].gradeName; }
+    return "UNDEFINED";
+}</span>
+
+// DefaultScoringPolicy
+<span style = "background-color:#dfd">DefaultScoringPolicy::DefaultScoringPolicy() {
+    base_[0] = 1; base_[1] = 1; base_[2] = 3; base_[3] = 1; base_[4] = 1; base_[5] = 2; base_[6] = 2;
+    wedBonusThreshold_ = 10; wedBonus_ = 10;
+    weekendBonusThreshold_ = 10; weekendBonus_ = 10;
+}</span>
+
+<span style = "background-color:#dfd">int DefaultScoringPolicy::basePoint(Weekday d) const { return base_[(int)d]; }</span>
+
+<span style = "background-color:#dfd">int DefaultScoringPolicy::bonusPoints(const PlayerStat&amp; p) const {
+    int bonus = 0;
+    if (p.dayCount[(int)Wed] &gt;= wedBonusThreshold_) bonus += wedBonus_;
+    int wk = p.dayCount[(int)Sat] + p.dayCount[(int)Sun];
+    if (wk &gt;= weekendBonusThreshold_) bonus += weekendBonus_;
+    return bonus;
+}</span>
+
+// Elimination
+<span style = "background-color:#dfd">bool NormalNoWedWeekendElimination::isEliminated(const PlayerStat&amp; p) const {
+    bool neverWedOrWeekend = (p.dayCount[(int)Wed] == 0) &amp;&amp; (p.dayCount[(int)Sat] == 0) &amp;&amp; (p.dayCount[(int)Sun] == 0);
+    return (p.grade == "NORMAL") &amp;&amp; neverWedOrWeekend;
+}</span>
+
+// AttendanceSystem (Facade)
+AttendanceSystem::AttendanceSystem()
+<span style = "background-color:#dfd">    : scoring_(0), grade_(0), elimination_(0),
+    ownScoring_(false), ownGrade_(false), ownElim_(false)
+{
+    scoring_ = new DefaultScoringPolicy(); ownScoring_ = true;
+    grade_ = new ThresholdGradePolicy(); ownGrade_ = true;
+    elimination_ = new NormalNoWedWeekendElimination(); ownElim_ = true;
+}</span>
+
+AttendanceSystem::AttendanceSystem(IScoringPolicy* s, IGradePolicy* g, IEliminationRule* e)
+<span style = "background-color:#dfd">    : scoring_(s), grade_(g), elimination_(e),
+    ownScoring_(false), ownGrade_(false), ownElim_(false) {
+}</span>
+
+<span style = "background-color:#dfd">AttendanceSystem::~AttendanceSystem() {
+    if (ownScoring_) delete scoring_;
+    if (ownGrade_)   delete grade_;
+    if (ownElim_)    delete elimination_;
+}</span>
+
+<span style = "background-color:#dfd">int AttendanceSystem::ensurePlayerIndex(const std::string&amp; name) {
+    std::map&lt;std::string, int&gt;::iterator it = indexByName_.find(name);
+    if (it != indexByName_.end()) return it-&gt;second;
+    int idx = (int)players_.size();
+    indexByName_.insert(std::make_pair(name, idx));
+    PlayerStat p; p.id = idx + 1; p.name = name; players_.push_back(p);
+    return idx;
+}</span>
+
+<span style = "background-color:#dfd">void AttendanceSystem::addRecord(const std::string&amp; name, Weekday day) {
+    int idx = ensurePlayerIndex(name);
+    PlayerStat&amp; p = players_[idx];
+    p.dayCount[(int)day] += 1;
+    p.basePoints += scoring_-&gt;basePoint(day);
+}</span>
+
+<span style = "background-color:#dfd">bool AttendanceSystem::addRecordLine(const std::string&amp; nameToken, const std::string&amp; dayToken) {
+    Weekday w; if (!parseWeekday(dayToken, w)) return false; addRecord(nameToken, w); return true;
+}</span>
+
+<span style = "background-color:#dfd">void AttendanceSystem::loadFromStream(std::istream&amp; in) {
+    std::string name, day; while (in &gt;&gt; name &gt;&gt; day) { addRecordLine(name, day); }
+}</span>
+
+<span style = "background-color:#dfd">void AttendanceSystem::loadFromFile(const std::string&amp; path) {
+    std::ifstream fin(path.c_str()); if (!fin.is_open()) { std::cerr &lt;&lt; "Failed to open file: " &lt;&lt; path &lt;&lt; "\n"; return; }
+    loadFromStream(fin);
+}</span>
+
+<span style = "background-color:#dfd">void AttendanceSystem::compute() {
+    for (size_t i = 0; i &lt; players_.size(); ++i) {
+        PlayerStat&amp; p = players_[i];
+        p.wedCount = p.dayCount[(int)Wed];
+        p.weekendCount = p.dayCount[(int)Sat] + p.dayCount[(int)Sun];
+        p.bonusPoints = scoring_-&gt;bonusPoints(p);
+        p.totalPoints = p.basePoints + p.bonusPoints;
+        p.grade = grade_-&gt;decide(p.totalPoints);
+        p.eliminationCandidate = elimination_-&gt;isEliminated(p);
+    }
+}
+const std::vector&lt;PlayerStat&gt;&amp; AttendanceSystem::players() const { return players_; }</span>
+
+<span style = "background-color:#dfd">void AttendanceSystem::printSummary(std::ostream&amp; os) const {
+    for (size_t i = 0; i &lt; players_.size(); ++i) {
+        const PlayerStat&amp; p = players_[i];
+        os &lt;&lt; "NAME : " &lt;&lt; p.name &lt;&lt; ", POINT : " &lt;&lt; p.totalPoints &lt;&lt; ", GRADE : " &lt;&lt; p.grade &lt;&lt; "\n";
+    }
+    os &lt;&lt; "\nRemoved player\n==============\n";
+    for (size_t i = 0; i &lt; players_.size(); ++i) {
+        const PlayerStat&amp; p = players_[i];
+        if (p.eliminationCandidate) os &lt;&lt; p.name &lt;&lt; "\n";
+    }
+}</span>
+
+<span style = "background-color:#dfd">void AttendanceSystem::clear() { indexByName_.clear(); players_.clear(); }</span></pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>

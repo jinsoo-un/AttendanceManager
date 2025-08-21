@@ -1,6 +1,8 @@
 ﻿#include "attendance.h"
+#include "policyFactory.h"
 #include <gtest/gtest.h>
 #include <sstream>
+#include <fstream>
 
 #if _ENABLE_GTEST
 
@@ -20,9 +22,9 @@ TEST(ParseWeekdayTest, InvalidDay) {
 // ID 할당 순서 테스트
 TEST(AttendanceSystemTest, IdAssignmentOrder) {
     AttendanceSystem sys;           // 기본 정책 자동 장착
-    sys.addRecord("Alice", Mon);    // id=1
-    sys.addRecord("Bob", Tue);      // id=2
-    sys.addRecord("Alice", Wed);    // id=1
+    sys.addRecord("Alice", Mon);    // id = 1
+    sys.addRecord("Bob", Tue);      // id = 2
+    sys.addRecord("Alice", Wed);    // id = 1
     sys.compute();
 
     const std::vector<PlayerStat>& ps = sys.players();
@@ -80,7 +82,7 @@ TEST(AttendanceSystemTest, GradeDecisions) {
     AttendanceSystem sys(&scoring, &grade, &elim);
 
     // GOLD: >= 50
-    for (int i = 0; i < 17; ++i) sys.addRecord("Goldie", Wed); // 17*3=51 base
+    for (int i = 0; i < 17; ++i) sys.addRecord("Goldie", Wed); // 17 * 3 = 51 base
     // SILVER: >= 30
     for (int i = 0; i < 10; ++i) sys.addRecord("Silver", Wed); // 30 base + 10 bonus = 40
     // NORMAL: < 30
@@ -127,6 +129,38 @@ TEST(AttendanceSystemTest, EliminationCandidateRule) {
     EXPECT_FALSE(ps[2].eliminationCandidate);
 }
 
+TEST(AttendanceSystemTest, UndefinedWhenNoBands) {
+    std::vector<GradeBand> emptyBands;
+    ThresholdGradePolicy grade(emptyBands);
+    DefaultScoringPolicy scoring;
+    NormalNoWedWeekendElimination elim;
+
+    AttendanceSystem sys(&scoring, &grade, &elim);
+    sys.addRecord("NoBandUser", Mon);
+    sys.compute();
+
+    ASSERT_EQ(1u, sys.players().size());
+    EXPECT_EQ("UNDEFINED", sys.players()[0].grade);
+}
+
+TEST(AttendanceSystemTest, ClearResetsState) {
+    AttendanceSystem sys;
+    sys.addRecord("A", Mon);
+    sys.addRecord("B", Tue);
+    sys.compute();
+    ASSERT_EQ(2u, sys.players().size());
+
+    sys.clear();
+    EXPECT_TRUE(sys.players().empty());
+
+    // 재사용 시 ID가 다시 1부터 시작하는지(등장 순서 보장) 확인
+    sys.addRecord("X", Wed);
+    sys.compute();
+    ASSERT_EQ(1u, sys.players().size());
+    EXPECT_EQ(1, sys.players()[0].id);
+    EXPECT_EQ("X", sys.players()[0].name);
+}
+
 // Stream 입력받아서 처리 테스트
 TEST(AttendanceSystemTest, LoadFromStream) {
     std::stringstream ss;
@@ -148,7 +182,7 @@ TEST(AttendanceSystemTest, LoadFromStream) {
     EXPECT_EQ(5, ps[2].totalPoints);
 }
 
-// 확장성: 등급 추가해도 클라이언트 변경 없음
+// 등급 추가해도 클라이언트 변경 없음
 TEST(Extensibility, PlatinumGradeWithoutClientChange) {
     // 80점 이상 PLATINUM 추가
     std::vector<GradeBand> bands;
@@ -168,6 +202,57 @@ TEST(Extensibility, PlatinumGradeWithoutClientChange) {
 
     ASSERT_EQ(1u, sys.players().size());
     EXPECT_EQ("PLATINUM", sys.players()[0].grade);
+}
+
+// Factory 패턴 테스트
+TEST(FactoryPatternTest, DefaultFactoryCreatesAndWorks) {
+    DefaultPolicyFactory f;
+    PolicyBundle b = f.create();
+    AttendanceSystem sys(b.scoring, b.grading, b.elimination);
+
+    sys.addRecord("FactoryUser", Wed);
+    sys.compute();
+    ASSERT_EQ(1u, sys.players().size());
+    EXPECT_EQ("FactoryUser", sys.players()[0].name);
+
+    // 팩토리가 생성한 정책은 호출자가 해제
+    delete b.scoring; delete b.grading; delete b.elimination;
+}
+
+// LoadFromFile 테스트
+TEST(LoadFileTest, LoadFromFileAndPrintSummary) {
+    const std::string tmp = "ut_temp_attendance.txt";
+    {
+        std::ofstream fout(tmp.c_str());
+        ASSERT_TRUE(fout.is_open());
+        fout << "Umar monday\n";
+        fout << "Daisy wednesday\n";
+        fout << "BadName funday\n";
+    }
+
+    AttendanceSystem sys;
+    sys.loadFromFile(tmp);
+    sys.compute();
+
+    const std::vector<PlayerStat>& ps = sys.players();
+    ASSERT_EQ(2u, ps.size());
+    EXPECT_EQ("Umar", ps[0].name);
+    EXPECT_EQ("Daisy", ps[1].name);
+
+    std::ostringstream oss;
+    sys.printSummary(oss);
+    std::string out = oss.str();
+    EXPECT_NE(std::string::npos, out.find("NAME : Umar"));
+    EXPECT_NE(std::string::npos, out.find("NAME : Daisy"));
+
+    std::remove(tmp.c_str());
+}
+
+TEST(LoadFileTest, LoadFromFileNotFoundGraceful) {
+    AttendanceSystem sys;
+    sys.loadFromFile("__no_such_file__.txt");
+    sys.compute();
+    EXPECT_TRUE(sys.players().empty());
 }
 
 #endif

@@ -1,0 +1,286 @@
+﻿<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml">
+	<head>
+        <meta charset="utf-8"/>
+	    <title>attendanceTest.cpp</title>
+	    <link href="../../third-party/google-code-prettify/prettify-CppCoverage.css" type="text/css" rel="stylesheet" />
+	    <script type="text/javascript" src="../../third-party/google-code-prettify/prettify.js"></script>
+	</head>
+    <body onload="prettyPrint()">
+        <h4></h4>
+        <pre class="prettyprint lang-cpp linenums">
+ï»¿#include "attendance.h"
+#include "policyFactory.h"
+#include &lt;gtest/gtest.h&gt;
+#include &lt;sstream&gt;
+#include &lt;fstream&gt;
+
+#if _ENABLE_GTEST
+
+// ìì¼ íì± íì¤í¸
+<span style = "background-color:#dfd">TEST(ParseWeekdayTest, ValidDays) {</span>
+    Weekday w;
+<span style = "background-color:#dfd">    EXPECT_TRUE(parseWeekday("monday", w));     EXPECT_EQ(Mon, w);
+    EXPECT_TRUE(parseWeekday("wednesday", w));  EXPECT_EQ(Wed, w);
+    EXPECT_TRUE(parseWeekday("sunday", w));     EXPECT_EQ(Sun, w);
+}</span>
+
+<span style = "background-color:#dfd">TEST(ParseWeekdayTest, InvalidDay) {</span>
+    Weekday w;
+<span style = "background-color:#dfd">    EXPECT_FALSE(parseWeekday("funday", w));
+}</span>
+
+// ID í ë¹ ìì íì¤í¸
+<span style = "background-color:#dfd">TEST(AttendanceSystemTest, IdAssignmentOrder) {
+    AttendanceSystem sys;           // ê¸°ë³¸ ì ì± ìë ì¥ì°©
+    sys.addRecord("Alice", Mon);    // id=1
+    sys.addRecord("Bob", Tue);      // id=2
+    sys.addRecord("Alice", Wed);    // id=1
+    sys.compute();</span>
+
+<span style = "background-color:#dfd">    const std::vector&lt;PlayerStat&gt;&amp; ps = sys.players();
+    ASSERT_EQ(2u, ps.size());
+    EXPECT_EQ(1, ps[0].id);
+    EXPECT_EQ("Alice", ps[0].name);
+    EXPECT_EQ(2, ps[0].dayCount[Mon] + ps[0].dayCount[Wed]);
+    EXPECT_EQ(2, ps[1].id);
+    EXPECT_EQ("Bob", ps[1].name);
+}</span>
+
+// ì¤ì½ì´ ê³ì° íì¤í¸
+<span style = "background-color:#dfd">TEST(AttendanceSystemTest, BaseAndBonus) {</span>
+    // ì ëµ ì£¼ì
+<span style = "background-color:#dfd">    DefaultScoringPolicy           scoring;
+    ThresholdGradePolicy           grade;
+    NormalNoWedWeekendElimination  elim;
+    AttendanceSystem sys(&amp;scoring, &amp;grade, &amp;elim);</span>
+
+    // Alice: Wed 10í -&gt; ììì¼ ë³´ëì¤ +10, ê° ììì¼ ê¸°ë³¸ì ì 3*10 = 30
+<span style = "background-color:#dfd">    for (int i = 0; i &lt; 10; ++i) sys.addRecord("Alice", Wed);</span>
+
+    // Bob: Sat 10í -&gt; ì£¼ë§ ë³´ëì¤ +10, ê° í ìì¼ ê¸°ë³¸ì ì 2*10 = 20
+<span style = "background-color:#dfd">    for (int i = 0; i &lt; 10; ++i) sys.addRecord("Bob", Sat);</span>
+
+    // Carol: íì¼ë§ 5í (Mon/Tue/Thu/Fri) -&gt; 1ì ì© 5í = 5ì , ë³´ëì¤ ìì
+<span style = "background-color:#dfd">    sys.addRecord("Carol", Mon);
+    sys.addRecord("Carol", Tue);
+    sys.addRecord("Carol", Thu);
+    sys.addRecord("Carol", Fri);
+    sys.addRecord("Carol", Mon);</span>
+
+<span style = "background-color:#dfd">    sys.compute();
+    const std::vector&lt;PlayerStat&gt;&amp; ps = sys.players();
+    ASSERT_EQ(3u, ps.size());</span>
+
+    // Alice
+<span style = "background-color:#dfd">    EXPECT_EQ("Alice", ps[0].name);
+    EXPECT_EQ(30 + 10, ps[0].totalPoints); // base 30 + bonus 10</span>
+
+    // Bob
+<span style = "background-color:#dfd">    EXPECT_EQ("Bob", ps[1].name);
+    EXPECT_EQ(20 + 10, ps[1].totalPoints); // base 20 + bonus 10</span>
+
+    // Carol
+<span style = "background-color:#dfd">    EXPECT_EQ("Carol", ps[2].name);
+    EXPECT_EQ(5, ps[2].totalPoints);
+}</span>
+
+// grade ê²°ì  íì¤í¸
+<span style = "background-color:#dfd">TEST(AttendanceSystemTest, GradeDecisions) {
+    DefaultScoringPolicy           scoring;
+    ThresholdGradePolicy           grade;
+    NormalNoWedWeekendElimination  elim;
+    AttendanceSystem sys(&amp;scoring, &amp;grade, &amp;elim);</span>
+
+    // GOLD: &gt;= 50
+<span style = "background-color:#dfd">    for (int i = 0; i &lt; 17; ++i) sys.addRecord("Goldie", Wed); // 17*3=51 base</span>
+    // SILVER: &gt;= 30
+<span style = "background-color:#dfd">    for (int i = 0; i &lt; 10; ++i) sys.addRecord("Silver", Wed); // 30 base + 10 bonus = 40</span>
+    // NORMAL: &lt; 30
+<span style = "background-color:#dfd">    for (int i = 0; i &lt; 10; ++i) sys.addRecord("Normalo", Mon); // 10ì </span>
+
+<span style = "background-color:#dfd">    sys.compute();
+    const std::vector&lt;PlayerStat&gt;&amp; ps = sys.players();
+    ASSERT_EQ(3u, ps.size());</span>
+
+<span style = "background-color:#dfd">    EXPECT_EQ("GOLD", ps[0].grade);
+    EXPECT_EQ("SILVER", ps[1].grade);
+    EXPECT_EQ("NORMAL", ps[2].grade);
+}</span>
+
+// elimination íë³´ ê²°ì  íì¤í¸
+<span style = "background-color:#dfd">TEST(AttendanceSystemTest, EliminationCandidateRule) {
+    DefaultScoringPolicy           scoring;
+    ThresholdGradePolicy           grade;
+    NormalNoWedWeekendElimination  elim;
+    AttendanceSystem sys(&amp;scoring, &amp;grade, &amp;elim);</span>
+
+    // Normal &amp; ì/ì£¼ë§ í ë²ë ìì -&gt; íë½ íë³´
+<span style = "background-color:#dfd">    sys.addRecord("Eli", Mon);
+    sys.addRecord("Eli", Thu);
+    sys.addRecord("Eli", Fri);</span>
+
+    // ììì¼ 1í -&gt; íë½ ìë
+<span style = "background-color:#dfd">    sys.addRecord("KeepWed", Wed);</span>
+
+    // ì£¼ë§ 1í -&gt; íë½ ìë
+<span style = "background-color:#dfd">    sys.addRecord("KeepWeekend", Sat);</span>
+
+<span style = "background-color:#dfd">    sys.compute();
+    const std::vector&lt;PlayerStat&gt;&amp; ps = sys.players();
+    ASSERT_EQ(3u, ps.size());</span>
+
+<span style = "background-color:#dfd">    EXPECT_EQ("Eli", ps[0].name);
+    EXPECT_TRUE(ps[0].eliminationCandidate);</span>
+
+<span style = "background-color:#dfd">    EXPECT_EQ("KeepWed", ps[1].name);
+    EXPECT_FALSE(ps[1].eliminationCandidate);</span>
+
+<span style = "background-color:#dfd">    EXPECT_EQ("KeepWeekend", ps[2].name);
+    EXPECT_FALSE(ps[2].eliminationCandidate);
+}</span>
+
+// Grade UNDEFINED íì¤í¸
+<span style = "background-color:#dfd">TEST(AttendanceSystemTest, UndefinedWhenNoBands) {
+    std::vector&lt;GradeBand&gt; emptyBands;  // ë¹ì´ìì â decideê° "UNDEFINED" ë°í
+    ThresholdGradePolicy grade(emptyBands);
+    DefaultScoringPolicy scoring;
+    NormalNoWedWeekendElimination elim;</span>
+
+<span style = "background-color:#dfd">    AttendanceSystem sys(&amp;scoring, &amp;grade, &amp;elim);
+    sys.addRecord("NoBandUser", Mon);
+    sys.compute();</span>
+
+<span style = "background-color:#dfd">    ASSERT_EQ(1u, sys.players().size());
+    EXPECT_EQ("UNDEFINED", sys.players()[0].grade);
+}</span>
+
+<span style = "background-color:#dfd">TEST(AttendanceSystemTest, ClearResetsState) {
+    AttendanceSystem sys;
+    sys.addRecord("A", Mon);
+    sys.addRecord("B", Tue);
+    sys.compute();
+    ASSERT_EQ(2u, sys.players().size());</span>
+
+<span style = "background-color:#dfd">    sys.clear();
+    EXPECT_TRUE(sys.players().empty());</span>
+
+    // ì¬ì¬ì© ì IDê° ë¤ì 1ë¶í° ììíëì§(ë±ì¥ ìì ë³´ì¥) íì¸
+<span style = "background-color:#dfd">    sys.addRecord("X", Wed);
+    sys.compute();
+    ASSERT_EQ(1u, sys.players().size());
+    EXPECT_EQ(1, sys.players()[0].id);
+    EXPECT_EQ("X", sys.players()[0].name);
+}</span>
+
+// Stream ìë ¥ë°ìì ì²ë¦¬ íì¤í¸
+<span style = "background-color:#dfd">TEST(AttendanceSystemTest, LoadFromStream) {
+    std::stringstream ss;
+    ss &lt;&lt; "Umar monday\n"</span>
+        &lt;&lt; "Daisy tuesday\n"
+        &lt;&lt; "Alice wednesday\n"
+        &lt;&lt; "Alice saturday\n"
+        &lt;&lt; "BadName funday\n"; // invalid ìì¼ì ë¬´ìë¨
+
+<span style = "background-color:#dfd">    AttendanceSystem sys; // ê¸°ë³¸ ì ì± ìë ì¥ì°©
+    sys.loadFromStream(ss);
+    sys.compute();</span>
+
+<span style = "background-color:#dfd">    const std::vector&lt;PlayerStat&gt;&amp; ps = sys.players();
+    ASSERT_EQ(3u, ps.size()); // BadName ë¬´ìë¡ 3ëªë§</span>
+
+    // Alice: Wed(3) + Sat(2) = 5ì 
+<span style = "background-color:#dfd">    EXPECT_EQ("Alice", ps[2].name);
+    EXPECT_EQ(5, ps[2].totalPoints);
+}</span>
+
+// íì¥ì±: ë±ê¸ ì¶ê°í´ë í´ë¼ì´ì¸í¸ ë³ê²½ ìì
+<span style = "background-color:#dfd">TEST(Extensibility, PlatinumGradeWithoutClientChange) {</span>
+    // 80ì  ì´ì PLATINUM ì¶ê°
+<span style = "background-color:#dfd">    std::vector&lt;GradeBand&gt; bands;
+    GradeBand b;
+    b.gradeName = "PLATINUM"; b.minScore = 80; bands.push_back(b);
+    b.gradeName = "GOLD";     b.minScore = 50; bands.push_back(b);
+    b.gradeName = "SILVER";   b.minScore = 30; bands.push_back(b);
+    b.gradeName = "NORMAL";   b.minScore = 0;  bands.push_back(b);</span>
+
+<span style = "background-color:#dfd">    ThresholdGradePolicy platinumPolicy(bands);
+    DefaultScoringPolicy scoring;               // ê¸°ë³¸
+    NormalNoWedWeekendElimination elim;         // ê¸°ë³¸</span>
+
+<span style = "background-color:#dfd">    AttendanceSystem sys(&amp;scoring, &amp;platinumPolicy, &amp;elim); // ì£¼ì
+    for (int i = 0; i &lt; 27; ++i) sys.addRecord("Ace", Wed); // 27*3=81 -&gt; PLATINUM
+    sys.compute();</span>
+
+<span style = "background-color:#dfd">    ASSERT_EQ(1u, sys.players().size());
+    EXPECT_EQ("PLATINUM", sys.players()[0].grade);
+}</span>
+
+// Factory í¨í´ íì¤í¸
+<span style = "background-color:#dfd">TEST(FactoryPatternTest, DefaultFactoryCreatesAndWorks) {
+    DefaultPolicyFactory f;
+    PolicyBundle b = f.create();
+    AttendanceSystem sys(b.scoring, b.grading, b.elimination);</span>
+
+<span style = "background-color:#dfd">    sys.addRecord("FactoryUser", Wed);             // 3ì 
+    sys.compute();
+    ASSERT_EQ(1u, sys.players().size());
+    EXPECT_EQ("FactoryUser", sys.players()[0].name);</span>
+
+    // í©í ë¦¬ê° ìì±í ì ì±ì í¸ì¶ìê° í´ì 
+<span style = "background-color:#dfd">    delete b.scoring; delete b.grading; delete b.elimination;
+}</span>
+
+// LoadFromFile Test
+<span style = "background-color:#dfd">TEST(LoadFileTest, LoadFromFileAndPrintSummary) {
+    const std::string tmp = "ut_temp_attendance.txt";</span>
+    {
+<span style = "background-color:#dfd">        std::ofstream fout(tmp.c_str());
+        ASSERT_TRUE(fout.is_open());
+        fout &lt;&lt; "Umar monday\n";
+        fout &lt;&lt; "Daisy wednesday\n";
+        fout &lt;&lt; "BadName funday\n";
+    }</span>
+
+<span style = "background-color:#dfd">    AttendanceSystem sys;
+    sys.loadFromFile(tmp);
+    sys.compute();</span>
+
+<span style = "background-color:#dfd">    const std::vector&lt;PlayerStat&gt;&amp; ps = sys.players();
+    ASSERT_EQ(2u, ps.size());
+    EXPECT_EQ("Umar", ps[0].name);
+    EXPECT_EQ("Daisy", ps[1].name);</span>
+
+<span style = "background-color:#dfd">    std::ostringstream oss;
+    sys.printSummary(oss);
+    std::string out = oss.str();
+    EXPECT_NE(std::string::npos, out.find("NAME : Umar"));
+    EXPECT_NE(std::string::npos, out.find("NAME : Daisy"));</span>
+
+    // íì¤í¸ í ì ë¦¬
+<span style = "background-color:#dfd">    std::remove(tmp.c_str());
+}</span>
+
+<span style = "background-color:#dfd">TEST(LoadFileTest, LoadFromFileNotFoundGraceful) {
+    AttendanceSystem sys;
+    sys.loadFromFile("__no_such_file__.txt");
+    sys.compute();
+    EXPECT_TRUE(sys.players().empty());
+}</span>
+
+#endif</pre>
+        <hr />
+        <table width="100%">
+            <thead>
+                <tr>
+                    <th align="center">
+                        <small>Generated by</small>
+                        <a href="https://github.com/OpenCppCoverage/OpenCppCoverage/releases">
+                            <strong>OpenCppCoverage (Version: 0.9.9.0)</strong>
+                        </a>
+                    </th>
+                </tr>
+            </thead>
+        </table>
+    </body>
+</html>
