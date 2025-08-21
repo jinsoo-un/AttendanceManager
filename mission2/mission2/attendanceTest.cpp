@@ -2,6 +2,8 @@
 #include <gtest/gtest.h>
 #include <sstream>
 
+#if _ENABLE_GTEST
+
 // 요일 파싱 테스트
 TEST(ParseWeekdayTest, ValidDays) {
     Weekday w;
@@ -34,11 +36,10 @@ TEST(AttendanceSystemTest, IdAssignmentOrder) {
 
 // 스코어 계산 테스트
 TEST(AttendanceSystemTest, BaseAndBonus) {
-    // 기존: ScoringPolicy sp; GradePolicy gp; AttendanceSystem sys(sp, gp);
-    // 변경: 전략 주입
-    CompositeScoringPolicy scoring;
-    ThresholdGradePolicy   grade;
-    NormalNoWedWeekendElimination elim;
+    // 전략 주입
+    DefaultScoringPolicy           scoring;
+    ThresholdGradePolicy           grade;
+    NormalNoWedWeekendElimination  elim;
     AttendanceSystem sys(&scoring, &grade, &elim);
 
     // Alice: Wed 10회 -> 수요일 보너스 +10, 각 수요일 기본점수 3*10 = 30
@@ -73,9 +74,9 @@ TEST(AttendanceSystemTest, BaseAndBonus) {
 
 // grade 결정 테스트
 TEST(AttendanceSystemTest, GradeDecisions) {
-    CompositeScoringPolicy scoring;
-    ThresholdGradePolicy   grade;
-    NormalNoWedWeekendElimination elim;
+    DefaultScoringPolicy           scoring;
+    ThresholdGradePolicy           grade;
+    NormalNoWedWeekendElimination  elim;
     AttendanceSystem sys(&scoring, &grade, &elim);
 
     // GOLD: >= 50
@@ -96,9 +97,9 @@ TEST(AttendanceSystemTest, GradeDecisions) {
 
 // elimination 후보 결정 테스트
 TEST(AttendanceSystemTest, EliminationCandidateRule) {
-    CompositeScoringPolicy scoring;
-    ThresholdGradePolicy   grade;
-    NormalNoWedWeekendElimination elim;
+    DefaultScoringPolicy           scoring;
+    ThresholdGradePolicy           grade;
+    NormalNoWedWeekendElimination  elim;
     AttendanceSystem sys(&scoring, &grade, &elim);
 
     // Normal & 수/주말 한 번도 없음 -> 탈락 후보
@@ -147,23 +148,26 @@ TEST(AttendanceSystemTest, LoadFromStream) {
     EXPECT_EQ(5, ps[2].totalPoints);
 }
 
+// 확장성: 등급 추가해도 클라이언트 변경 없음
 TEST(Extensibility, PlatinumGradeWithoutClientChange) {
     // 80점 이상 PLATINUM 추가
     std::vector<GradeBand> bands;
     GradeBand b;
     b.gradeName = "PLATINUM"; b.minScore = 80; bands.push_back(b);
-    b.gradeName = "GOLD"; b.minScore = 50; bands.push_back(b);
-    b.gradeName = "SILVER"; b.minScore = 30; bands.push_back(b);
-    b.gradeName = "NORMAL"; b.minScore = 0; bands.push_back(b);
+    b.gradeName = "GOLD";     b.minScore = 50; bands.push_back(b);
+    b.gradeName = "SILVER";   b.minScore = 30; bands.push_back(b);
+    b.gradeName = "NORMAL";   b.minScore = 0;  bands.push_back(b);
 
     ThresholdGradePolicy platinumPolicy(bands);
-    CompositeScoringPolicy scoring;               // 기본
-    NormalNoWedWeekendElimination elim;           // 기본
+    DefaultScoringPolicy scoring;               // 기본
+    NormalNoWedWeekendElimination elim;         // 기본
 
     AttendanceSystem sys(&scoring, &platinumPolicy, &elim); // 주입
-    for (int i = 0; i < 27; ++i) sys.addRecord("Ace", Wed); // 27*3=81 → PLATINUM
+    for (int i = 0; i < 27; ++i) sys.addRecord("Ace", Wed); // 27*3=81 -> PLATINUM
     sys.compute();
 
     ASSERT_EQ(1u, sys.players().size());
     EXPECT_EQ("PLATINUM", sys.players()[0].grade);
 }
+
+#endif

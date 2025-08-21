@@ -24,6 +24,9 @@
     <ClCompile Include="attendanceTest.cpp">
       <Filter>소스 파일</Filter>
     </ClCompile>
+    <ClCompile Include="policyFactory.cpp">
+      <Filter>소스 파일</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="attendance_weekday_500.txt">
@@ -32,6 +35,9 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="attendance.h">
+      <Filter>헤더 파일</Filter>
+    </ClInclude>
+    <ClInclude Include="policyFactory.h">
       <Filter>헤더 파일</Filter>
     </ClInclude>
   </ItemGroup>

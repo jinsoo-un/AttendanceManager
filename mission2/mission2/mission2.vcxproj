@@ -127,12 +127,14 @@
     <ClCompile Include="attendance.cpp" />
     <ClCompile Include="attendanceTest.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="policyFactory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="attendance_weekday_500.txt" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="attendance.h" />
+    <ClInclude Include="policyFactory.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
