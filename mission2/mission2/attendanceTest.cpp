@@ -1,8 +1,8 @@
-#include "attendance.h"
+ï»¿#include "attendance.h"
 #include <gtest/gtest.h>
 #include <sstream>
 
-// ¿äÀÏ ÆÄ½Ì Å×½ºÆ®
+// ìš”ì¼ íŒŒì‹± í…ŒìŠ¤íŠ¸
 TEST(ParseWeekdayTest, ValidDays) {
     Weekday w;
     EXPECT_TRUE(parseWeekday("monday", w));     EXPECT_EQ(Mon, w);
@@ -15,7 +15,7 @@ TEST(ParseWeekdayTest, InvalidDay) {
     EXPECT_FALSE(parseWeekday("funday", w));
 }
 
-// ID ÇÒ´ç ¼ø¼­ Å×½ºÆ®
+// ID í• ë‹¹ ìˆœì„œ í…ŒìŠ¤íŠ¸
 TEST(AttendanceSystemTest, IdAssignmentOrder) {
     AttendanceSystem sys;
     sys.addRecord("Alice", Mon);    // id=1
@@ -32,18 +32,18 @@ TEST(AttendanceSystemTest, IdAssignmentOrder) {
     EXPECT_EQ("Bob", ps[1].name);
 }
 
-// ½ºÄÚ¾î °è»ê Å×½ºÆ®
+// ìŠ¤ì½”ì–´ ê³„ì‚° í…ŒìŠ¤íŠ¸
 TEST(AttendanceSystemTest, BaseAndBonus) {
     ScoringPolicy sp; GradePolicy gp;
     AttendanceSystem sys(sp, gp);
 
-    // Alice: Wed 10È¸ -> ¼ö¿äÀÏ º¸³Ê½º +10, °¢ ¼ö¿äÀÏ ±âº»Á¡¼ö 3*10 = 30
+    // Alice: Wed 10íšŒ -> ìˆ˜ìš”ì¼ ë³´ë„ˆìŠ¤ +10, ê° ìˆ˜ìš”ì¼ ê¸°ë³¸ì ìˆ˜ 3*10 = 30
     for (int i = 0; i < 10; ++i) sys.addRecord("Alice", Wed);
 
-    // Bob: Sat 10È¸ -> ÁÖ¸» º¸³Ê½º +10, °¢ Åä¿äÀÏ ±âº»Á¡¼ö 2*10 = 20
+    // Bob: Sat 10íšŒ -> ì£¼ë§ ë³´ë„ˆìŠ¤ +10, ê° í† ìš”ì¼ ê¸°ë³¸ì ìˆ˜ 2*10 = 20
     for (int i = 0; i < 10; ++i) sys.addRecord("Bob", Sat);
 
-    // Carol: ÆòÀÏ¸¸ 5È¸ (Mon/Tue/Thu/Fri) -> 1Á¡¾¿ 5È¸ = 5Á¡, º¸³Ê½º ¾øÀ½
+    // Carol: í‰ì¼ë§Œ 5íšŒ (Mon/Tue/Thu/Fri) -> 1ì ì”© 5íšŒ = 5ì , ë³´ë„ˆìŠ¤ ì—†ìŒ
     sys.addRecord("Carol", Mon);
     sys.addRecord("Carol", Tue);
     sys.addRecord("Carol", Thu);
@@ -67,17 +67,17 @@ TEST(AttendanceSystemTest, BaseAndBonus) {
     EXPECT_EQ(5, ps[2].totalPoints);
 }
 
-// grade °áÁ¤ Å×½ºÆ®
+// grade ê²°ì • í…ŒìŠ¤íŠ¸
 TEST(AttendanceSystemTest, GradeDecisions) {
     ScoringPolicy sp; GradePolicy gp;
     AttendanceSystem sys(sp, gp);
 
     // GOLD: >= 50
-    for (int i = 0; i < 17; ++i) sys.addRecord("Goldie", Wed); // 17*3=51 base, º¸³Ê½ºµµ »ı±æ ¼ö ÀÖÀ½
+    for (int i = 0; i < 17; ++i) sys.addRecord("Goldie", Wed); // 17*3=51 base, ë³´ë„ˆìŠ¤ë„ ìƒê¸¸ ìˆ˜ ìˆìŒ
     // SILVER: >= 30
-    for (int i = 0; i < 10; ++i) sys.addRecord("Silver", Wed); // 30 base + 10 bonus = 40 (È®½ÇÈ÷ ½Ç¹ö ÀÌ»ó)
+    for (int i = 0; i < 10; ++i) sys.addRecord("Silver", Wed); // 30 base + 10 bonus = 40 (í™•ì‹¤íˆ ì‹¤ë²„ ì´ìƒ)
     // NORMAL: < 30
-    for (int i = 0; i < 10; ++i) sys.addRecord("Normalo", Mon); // 10Á¡
+    for (int i = 0; i < 10; ++i) sys.addRecord("Normalo", Mon); // 10ì 
 
     sys.compute();
     const std::vector<PlayerStat>& ps = sys.players();
@@ -88,20 +88,20 @@ TEST(AttendanceSystemTest, GradeDecisions) {
     EXPECT_EQ("NORMAL", ps[2].grade);
 }
 
-// elimination ÈÄº¸ °áÁ¤ Å×½ºÆ®
+// elimination í›„ë³´ ê²°ì • í…ŒìŠ¤íŠ¸
 TEST(AttendanceSystemTest, EliminationCandidateRule) {
     ScoringPolicy sp; GradePolicy gp;
     AttendanceSystem sys(sp, gp);
 
-    // Normal & ¼ö/ÁÖ¸» ÇÑ ¹øµµ ¾øÀ½ -> Å»¶ô ÈÄº¸
+    // Normal & ìˆ˜/ì£¼ë§ í•œ ë²ˆë„ ì—†ìŒ -> íƒˆë½ í›„ë³´
     sys.addRecord("Eli", Mon);
     sys.addRecord("Eli", Thu);
     sys.addRecord("Eli", Fri);
 
-    // ¼ö¿äÀÏ 1È¸ -> Å»¶ô ¾Æ´Ô
+    // ìˆ˜ìš”ì¼ 1íšŒ -> íƒˆë½ ì•„ë‹˜
     sys.addRecord("KeepWed", Wed);
 
-    // ÁÖ¸» 1È¸ -> Å»¶ô ¾Æ´Ô
+    // ì£¼ë§ 1íšŒ -> íƒˆë½ ì•„ë‹˜
     sys.addRecord("KeepWeekend", Sat);
 
     sys.compute();
@@ -118,23 +118,23 @@ TEST(AttendanceSystemTest, EliminationCandidateRule) {
     EXPECT_FALSE(ps[2].eliminationCandidate);
 }
 
-// Stream ÀÔ·Â¹Ş¾Æ¼­ Ã³¸® Å×½ºÆ®
+// Stream ì…ë ¥ë°›ì•„ì„œ ì²˜ë¦¬ í…ŒìŠ¤íŠ¸
 TEST(AttendanceSystemTest, LoadFromStream) {
     std::stringstream ss;
     ss << "Umar monday\n"
         << "Daisy tuesday\n"
         << "Alice wednesday\n"
         << "Alice saturday\n"
-		<< "BadName funday\n"; // invalid ¿äÀÏÀº ¹«½ÃµÊ
+		<< "BadName funday\n"; // invalid ìš”ì¼ì€ ë¬´ì‹œë¨
 
     AttendanceSystem sys;
     sys.loadFromStream(ss);
     sys.compute();
 
     const std::vector<PlayerStat>& ps = sys.players();
-    ASSERT_EQ(3u, ps.size()); // BadName ¹«½Ã·Î 3¸í¸¸
+    ASSERT_EQ(3u, ps.size()); // BadName ë¬´ì‹œë¡œ 3ëª…ë§Œ
 
-    // Alice: Wed(3) + Sat(2) = 5Á¡
+    // Alice: Wed(3) + Sat(2) = 5ì 
     EXPECT_EQ("Alice", ps[2].name);
     EXPECT_EQ(5, ps[2].totalPoints);
 }

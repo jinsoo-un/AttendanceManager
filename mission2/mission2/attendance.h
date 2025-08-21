@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <map>
 #include <string>
 #include <vector>
@@ -70,7 +70,7 @@ struct Record {
     Record(const std::string& n, Weekday d) : name(n), day(d) {}
 };
 
-// --- ¼ø¼ö ÇÔ¼ö À¯Æ¿ ---
+// --- ìˆœìˆ˜ í•¨ìˆ˜ ìœ í‹¸ ---
 bool parseWeekday(const std::string& s, Weekday& out);
 int  computeBasePointForDay(Weekday d, const ScoringPolicy& policy);
 int  computeBonusPoints(const PlayerStat& p, const ScoringPolicy& policy);
@@ -82,22 +82,22 @@ public:
     AttendanceSystem();
     explicit AttendanceSystem(const ScoringPolicy& sp, const GradePolicy& gp);
 
-    // ÀÔ·Â
+    // ì…ë ¥
     void addRecord(const std::string& name, Weekday day);
-    bool addRecordLine(const std::string& nameToken, const std::string& dayToken); // ÆÄ½Ì Æ÷ÇÔ
+    bool addRecordLine(const std::string& nameToken, const std::string& dayToken); // íŒŒì‹± í¬í•¨
 
-    // ¹èÄ¡ ÀÔ·Â
+    // ë°°ì¹˜ ì…ë ¥
     void loadFromStream(std::istream& in);
     void loadFromFile(const std::string& path);
 
-    // °è»ê
-    void compute(); // base/bonus/grade/elimination »êÃâ
+    // ê³„ì‚°
+    void compute(); // base/bonus/grade/elimination ì‚°ì¶œ
 
-    // Á¶È¸/Ãâ·Â
+    // ì¡°íšŒ/ì¶œë ¥
     const std::vector<PlayerStat>& players() const;
     void printSummary(std::ostream& os) const;
 
-    // Å×½ºÆ® ÆíÀÇ¿ë
+    // í…ŒìŠ¤íŠ¸ í¸ì˜ìš©
     void clear();
 
 private:

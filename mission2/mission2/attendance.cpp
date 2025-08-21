@@ -1,8 +1,8 @@
-#include "attendance.h"
+ï»¿#include "attendance.h"
 #include <fstream>
 #include <cctype>
 
-// --- ·ÎÄÃ À¯Æ¿ ---
+// --- ë¡œì»¬ ìœ í‹¸ ---
 static std::string toLowerCopy(const std::string& s) {
     std::string out; out.reserve(s.size());
     for (size_t i = 0; i < s.size(); ++i) {
@@ -54,7 +54,7 @@ bool isEliminationCandidate(const PlayerStat& p) {
     return (p.grade == "NORMAL") && neverWedOrWeekend;
 }
 
-// --- AttendanceSystem ±¸Çö ---
+// --- AttendanceSystem êµ¬í˜„ ---
 AttendanceSystem::AttendanceSystem() : scoringPolicy_(), gradePolicy_() {}
 
 AttendanceSystem::AttendanceSystem(const ScoringPolicy& sp, const GradePolicy& gp)
@@ -92,7 +92,7 @@ bool AttendanceSystem::addRecordLine(const std::string& nameToken, const std::st
 void AttendanceSystem::loadFromStream(std::istream& in) {
     std::string name, dayStr;
     while (in >> name >> dayStr) {
-        addRecordLine(name, dayStr); // invalid ¿äÀÏÀº ¹«½Ã
+        addRecordLine(name, dayStr); // invalid ìš”ì¼ì€ ë¬´ì‹œ
     }
 }
 
